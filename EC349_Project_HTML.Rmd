@@ -1,0 +1,95 @@
+---
+title: "EC349 Predicting Yelp Reviews Project"
+author: "Amogh Para (u2107928)"
+date: "2023-12-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+# Introduction
+The main aim of this project is to leverage data from the "Yelp Academic dataset" in order to predict user preferences and ratings(i.e. the number of stars out of 5) for various establishments. Combined, the datasets provided contain over 7 million reviews spanning 150,000 businesses and nearly 2 million users. The following report outlines briefly the DS methodology chosen, the data exploration process as well as an analysis of my chosen method and results. 
+
+# DS Methodology
+The Data Science methodology I have chosen to use for this project is CRISP-DM, the de-facto industry standard for data-mining projects. The advantages of using CRISP-DM for this project include its flexible and systematic nature in terms of tool/technique selection, as well as its implicit assumption that the user is a single person/small team. Moreover, its iterative nature allows for greater flexibility in adapting to new insights gained in the data exploration phase. 
+
+The methodology comprises of six phases: Business Understanding, Data Understanding, Data Preparation, Modelling, Evaluation and Deployment. The problem for the business understanding phase is clearly defined: predicting user ratings based on Yelp reviews. Understanding this context allows for a tailored approach in meeting the required objectives. 
+
+# Data Understanding
+The goal of this phase of the process was to gain an understanding of the structure of the Yelp datasets, as well as the types of variables and information included in each. The yelp academic dataset comprises of five subsets: 
+- The review dataset, containing the full review, number of stars, user_id and whether the review was rated cool, funny or useful by other users. 
+- The user dataset, containing users' friend mapping and metadata
+- The tip dataset, containing tips written on businesses by users. 
+- The business dataset, containing business data such as name, location, etc.
+- The check-in dataset 
+The main variable of interest, stars, (contained within the review dataset) is a numeric variable varying between 1-5.  Approximately 15.3% of reviews had a rating of 1 star, 7.8% had 2 stars, 9.9% had three stars, 20.8% had 4 stars and 46.2% had 5 stars. The rough proportions of this are illustrated in the bar chart below. 
+
+
+```{r, echo=FALSE}
+knitr::include_graphics("C:/Users/amogh/OneDrive/Desktop/EC349 Repos/EC349 Project Actual/Data/F_of_stars.png") #If images do not load please change directory to where the images are located. Thank you!
+```
+
+Upon inspection, the business dataset contained many missing variables, making it less useful in driving predictions due to the lack of useful data. Similarly, the checkin dataset contained only business IDs and the checkin date, which are unlikely to be significantly related to 'stars'. Therefore, this project will be making use of the user, review and tip data in order to drive predictions in the model. 
+
+# Modelling:
+To prepare the datasets for modelling, I first converted the dates from character to date variables. Additionally, as 'stars' is a discrete variable that only takes integer values from 1 to 5, I found it more suitable to convert it into a 'factor' variable. The review, tip and user datasets were then merged into a single dataset for ease of prediction.
+
+The next step is choosing an appropriate modelling technique to obtain predictions on users' star ratings. As 'stars' is now a factor variable, a model that can represent discrete categories effectively is essential for generating clear usable predictions. As such, I opted for a decision tree model, specifically Random Forest. 
+Random Forests, being an ensemble of many decision trees, are most effective when there is a large amount of data for them to be trained on. As the dataset for this project contains over 2 million observations, there is ample data for the model to draw random bootstrapped samples, thereby helping reduce correlation across predictions, as well as variance in predictions compared to normal decision trees.
+
+## Statistical explanation
+Random forest models operate by first taking the training dataset, then drawing a subset of the covariates randomly from the dataset, from which a decision tree is constructed. This step is then repeated with new bootstrapped datasets(with different random draws of variables) many times, leading to the construction of a wide variety of trees. The model then finds the variable and split point among the subset that minimises the sum of squared residuals. After the tree is split at this point, the process above continues until a stopping criterion is reached. The model can then aggregate the bootstrapped trees (i.e. bagging) to make predictions by running data through the numerous random decision trees created, and recording the "votes" made by each tree. The outcome with the most votes will then be the prediction outcome from the model.  
+
+## Implementation
+Implementing the Random Forest model involved first splitting the merged dataset into training and test datasets. (Note: due to hardware restrictions, a random sample of the training dataset containing 15,000 observations was used to train the model instead of the full dataset.)
+Then, the Random Forest model was trained on the 'trainsample' dataframe, generating an out of bag (OOB) error of 25.13%, meaning the model generated correct predictions 74.87% of the time on the training data sample.
+
+|  | 1|   2|    3|    4|  5| class.error|
+|:-|:---|:---|:---|:---|:---|:---|:---|
+|1| 452  |10 |  41|  111|  138|   0.3989362|
+|2|  37 |624  | 73 | 241 | 168 |  0.4540682|
+|3|  17 | 27 |1713 | 609 | 315  | 0.3610593|
+|4|  33  |19 | 205 |4361 | 792   |0.1939002|
+|5|  47  |19  |100  |768| 4080   |0.1862784|
+
+The confusion matrix above indicates the model has a tendency to over-predict 4 and 5 stars, as seen by the larger values in the columns labelled 4 and 5, excluding the leading diagonal (which represents the correctly predicted, true positives).(The rows represent true values while the columns represent predicted values). 
+
+Running this model on the test data generates an error rate of 32.0%; meaning this model performs slightly worse on the test data compared to the training data, suggesting it may be slightly overfitted. 
+
+The below bar plot illustrates each feature in the model and its corresponding Mean Decrease in Gini (higher values signal greater importance in the model).
+
+
+```{r, echo=FALSE}
+knitr::include_graphics("C:/Users/amogh/OneDrive/Desktop/EC349 Repos/EC349 Project Actual/Data/Feature_imp.png")
+```
+
+### Improving the model
+```{r, echo=FALSE}
+knitr::include_graphics("C:/Users/amogh/OneDrive/Desktop/EC349 Repos/EC349 Project Actual/Data/RF_model.png")
+```
+
+Looking at the above plot, we see the error rate stabilise at around 300 trees, while the initial model used 500 trees. This excess of trees may have lead to overfitting the model to the training data, leading to worse prediction in the test data. To combat this, reducing the number of trees to 300 or less may be beneficial. 
+Making use of the 'rfUtilities' library, we can also find the optimal number of variables to choose at each split in order to minimise the error. 
+
+
+```{r, echo=FALSE}
+knitr::include_graphics("C:/Users/amogh/OneDrive/Desktop/EC349 Repos/EC349 Project Actual/Data/RFUtilgraph.png")
+```
+
+The plot above displays OOB error continuing to decrease as the number of variables at each split increases. This suggests that a random forest with fewer trees and a greater number of variables chosen at each split is likely to minimise the OOB error better than the original. 
+Upon running a new Random Forest model with 250 trees, and mtry = 20, we get error rates of 23.56% and 29.87% on training and test data respectively , an improvement by 1.57% and 2.13% respectively.
+
+# Evaluation
+A challenging aspect of this project was working around hardware constraints to manipulate the dataset and run models. Due to the large size of the dataset (over 2 million observations), running models and manipulating the dataset was tedious, and often crashed the software. To get around this constraint, I opted to use a randomly drawn sample of 15,000 observations from the training dataset, rather than the entire thing, to train the models on. This significantly reduced the computational load as well as execution times, but incurred a trade-off in terms of the models' accuracy, due to being trained on a smaller dataset. Nevertheless, I believe the decision was justified by the need to balance computational efficiency with the prediction outcomes. A way to offset this may have been to drop variables from the model which displayed a low Mean Decrease in Gini, as their presence may have unnecessarily increased computation needed without proportionally improving predictions.
+
+#### References:
+- Grolemund, G. & Wickham, H. 2016. R for Data Science: Import, Tidy, Transform Visualise, and Model Data. Available online:[https://r4ds.had.co.nz/index.html](https://r4ds.had.co.nz/index.html)
+- Hastie, T.; Tibshirani, R.; Friedman, J. H.; & Friedman, J. H. 2009. The Elements of Statistical Learning: Data Mining, Inference, and Prediction (Vol. 2). New York: Springer. Ebook and Print Book Available at the Warwick Library.
+- James, G.; Witten, D.; Hastie, T.; & Tibshirani, R. 2021 (2nd Ed.). An Introduction to Statistical Learning with Applications in R. Springer. Available online: [https://www.statlearning.com/](https://www.statlearning.com/)
+- Silge, J. & Robinson, D. 2017. Text Mining with R: A Tidy Approach. Available online:[https://www.tidytextmining.com/](https://www.tidytextmining.com/)
+- Nosratabadi, S.; Mosavi, A.; Duan, P.; Ghamisi, P.; Filip, F.; Band, S.; Reuter, U.; Gama, J.; & Gandomi, A. 2020_. Data science in economics: comprehensive review of advanced machine learning and deep learning methods_. Mathematics, 8(10), p.1799.
+- Provost, F. & Fawcett, T. 2013. _Data science and its relationship to big data and data-driven decision making_.
